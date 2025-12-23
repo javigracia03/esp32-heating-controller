@@ -11,16 +11,27 @@ services:
       - ESP_USER=${ESP_USER:-}
       - ESP_PASS=${ESP_PASS:-}
       - WEB_ORIGINS=${WEB_ORIGINS:-}
-    ports:
-      - "8000:8000"
+    expose:
+      - "8000"
     restart: unless-stopped
 
   frontend:
     build:
       context: ./calefaccion-web
     image: calefaccion-web:latest
+    depends_on:
+      - backend
+    expose:
+      - "80"
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:stable-alpine
     ports:
       - "8080:80"
     depends_on:
+      - frontend
       - backend
+    volumes:
+      - ./docker/nginx.conf:/etc/nginx/conf.d/default.conf:ro
     restart: unless-stopped
