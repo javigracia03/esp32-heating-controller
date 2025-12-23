@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import "./App.css";
 
-const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8000";
+// Use the Vite env var `VITE_API_BASE`. If not set, use same-origin
+// (empty string) so requests go to the current host (e.g. through nginx).
+const API_BASE = import.meta.env.VITE_API_BASE || "";
 
 type EspState = { up: boolean; down: boolean };
 
