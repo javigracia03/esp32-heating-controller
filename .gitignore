@@ -1,0 +1,12 @@
+.env
+.env.local
+node_modules
+dist
+.pio
+.vscode
+*.log
+.DS_Store
+
+#python
+__pycache__/
+

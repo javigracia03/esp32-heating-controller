@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+    image: calefaccion-backend:latest
+    environment:
+      # point to your ESP device on the LAN; override with .env or environment variables
+      - ESP_BASE_URL=${ESP_BASE_URL:-}
+      - ESP_USER=${ESP_USER:-}
+      - ESP_PASS=${ESP_PASS:-}
+      - WEB_ORIGINS=${WEB_ORIGINS:-}
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./calefaccion-web
+    image: calefaccion-web:latest
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
