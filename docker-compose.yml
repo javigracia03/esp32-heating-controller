@@ -18,6 +18,8 @@ services:
   frontend:
     build:
       context: ./calefaccion-web
+      args:
+        VITE_API_BASE: ${VITE_API_BASE:-/api}
     image: calefaccion-web:latest
     depends_on:
       - backend
