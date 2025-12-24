@@ -37,3 +37,16 @@ services:
     volumes:
       - ./docker/nginx.conf:/etc/nginx/conf.d/default.conf:ro
     restart: unless-stopped
+
+  telegram_bot:
+    build:
+      context: ./telegram-bot
+    image: calefaccion-telegram-bot:latest
+    environment:
+      - TG_TOKEN=${TG_TOKEN}
+      - TG_CHAT_ID=${TG_CHAT_ID}
+      - TRIGGER_TOKEN=${TRIGGER_TOKEN}
+      - TRIGGER_URL=${TRIGGER_URL:-http://host.docker.internal:5055/tunnel}
+    restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"

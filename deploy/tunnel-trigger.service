@@ -1,0 +1,13 @@
+[Unit]
+Description=Tunnel Trigger API
+After=network.target
+
+[Service]
+Type=simple
+EnvironmentFile=/etc/tunnel-trigger.env
+ExecStart=/usr/bin/python3 /opt/tunnel/trigger_api.py
+Restart=always
+User=root
+
+[Install]
+WantedBy=multi-user.target
