@@ -7,6 +7,8 @@ import os
 import re
 import shlex
 import subprocess
+import threading
+import errno
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from socketserver import ThreadingMixIn
 
@@ -61,42 +63,52 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         url = m.group(1)
-        # After the tunnel script updates the repo .env, trigger docker-compose
-        # to pick up the new environment for the telegram bot.
+        # Respond immediately to the client with the tunnel URL so callers
+        # (like Telegram) don't time out while we perform longer background work.
+        self.send_response(200)
+        self.send_header('Content-Type', 'text/plain')
+        self.end_headers()
         try:
-            repo_dir = os.path.dirname(TUNNEL_SCRIPT) if TUNNEL_SCRIPT else None
-            if repo_dir:
-                # run docker compose to rebuild/recreate all services so they pick up the new .env
-                # but exclude the telegram_bot service (we don't want to restart the bot here)
-                try:
-                    svc_proc = subprocess.run(
-                        ["docker", "compose", "config", "--services"],
-                        cwd=repo_dir,
-                        capture_output=True,
-                        text=True,
-                        timeout=30,
-                    )
-                    services = [s.strip() for s in svc_proc.stdout.splitlines() if s.strip()]
-                    services_to_update = [s for s in services if s != "telegram_bot"]
-                    if services_to_update:
-                        cmd = ["docker", "compose", "up", "-d", "--build"] + services_to_update
-                        dc = subprocess.run(cmd, cwd=repo_dir, capture_output=True, text=True, timeout=600)
-                    else:
-                        print("No services to update (only telegram_bot present); skipping docker compose step")
-                except Exception as e:
-                    print("docker compose invocation failed:", e)
-                # log compose output for debugging
+            self.wfile.write(url.encode())
+        except BrokenPipeError:
+            # client disconnected before we could write; that's fine
+            pass
+
+        # Run docker-compose in background to pick up the new .env without
+        # blocking the request handler.
+        def run_compose_background():
+            try:
+                repo_dir = os.path.dirname(TUNNEL_SCRIPT) if TUNNEL_SCRIPT else None
+                if not repo_dir:
+                    print('No repo dir for TUNNEL_SCRIPT; skipping docker compose')
+                    return
+
+                svc_proc = subprocess.run(
+                    ["docker", "compose", "config", "--services"],
+                    cwd=repo_dir,
+                    capture_output=True,
+                    text=True,
+                    timeout=30,
+                )
+                services = [s.strip() for s in svc_proc.stdout.splitlines() if s.strip()]
+                services_to_update = [s for s in services if s != "telegram_bot"]
+                if not services_to_update:
+                    print("No services to update (only telegram_bot present); skipping docker compose step")
+                    return
+
+                cmd = ["docker", "compose", "up", "-d", "--build"] + services_to_update
+                dc = subprocess.run(cmd, cwd=repo_dir, capture_output=True, text=True, timeout=600)
                 print("docker compose returncode:", dc.returncode)
                 if dc.stdout:
                     print(dc.stdout)
                 if dc.stderr:
                     print(dc.stderr)
-        except Exception as e:
-            print("docker compose invocation failed:", e)
-        self.send_response(200)
-        self.send_header('Content-Type', 'text/plain')
-        self.end_headers()
-        self.wfile.write(url.encode())
+            except Exception as e:
+                # Avoid letting background exceptions crash the server
+                print("docker compose invocation failed:", e)
+
+        t = threading.Thread(target=run_compose_background, daemon=True)
+        t.start()
 
     def log_message(self, format, *args):
         # keep logs minimal
