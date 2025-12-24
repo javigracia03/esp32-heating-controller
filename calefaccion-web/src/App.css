@@ -7,9 +7,12 @@
 
 .stack {
   width: 100%;
-  max-width: 520px;
-  display: grid;
+  max-width: 980px; /* allow room for two cards side-by-side */
+  position: relative; /* user requested relative positioning */
+  display: flex;
+  justify-content: center; /* centers cards horizontally */
   gap: 16px;
+  flex-wrap: wrap; /* wrap on smaller screens */
 }
 
 .card {
@@ -19,6 +22,10 @@
   padding: 18px;
   box-shadow: 0 10px 30px rgba(0,0,0,0.25);
   color: #e9edf5;
+  /* make cards a consistent size in flex layout */
+  flex: 0 1 320px;
+  width: 320px;
+  max-width: 100%;
 }
 
 .header {
