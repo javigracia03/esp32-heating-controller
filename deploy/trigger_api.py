@@ -41,7 +41,11 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         try:
-            proc = subprocess.run([TUNNEL_SCRIPT], capture_output=True, text=True, timeout=120)
+            # Allow TUNNEL_SCRIPT to include args; run from the script's directory so
+            # a relative `.env` in the repo root is found by the script.
+            cmd = shlex.split(TUNNEL_SCRIPT)
+            cwd = os.path.dirname(cmd[0]) if cmd and os.path.isabs(cmd[0]) else None
+            proc = subprocess.run(cmd, capture_output=True, text=True, timeout=120, cwd=cwd)
         except Exception as e:
             self.send_response(500)
             self.end_headers()
