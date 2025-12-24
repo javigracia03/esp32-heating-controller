@@ -61,6 +61,27 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         url = m.group(1)
+        # After the tunnel script updates the repo .env, trigger docker-compose
+        # to pick up the new environment for the telegram bot.
+        try:
+            repo_dir = os.path.dirname(TUNNEL_SCRIPT) if TUNNEL_SCRIPT else None
+            if repo_dir:
+                # run docker compose to rebuild/recreate all services so they pick up the new .env
+                dc = subprocess.run(
+                    ["docker", "compose", "up", "-d", "--build"],
+                    cwd=repo_dir,
+                    capture_output=True,
+                    text=True,
+                    timeout=600,
+                )
+                # log compose output for debugging
+                print("docker compose returncode:", dc.returncode)
+                if dc.stdout:
+                    print(dc.stdout)
+                if dc.stderr:
+                    print(dc.stderr)
+        except Exception as e:
+            print("docker compose invocation failed:", e)
         self.send_response(200)
         self.send_header('Content-Type', 'text/plain')
         self.end_headers()
