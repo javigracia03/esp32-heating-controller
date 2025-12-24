@@ -26,6 +26,22 @@
   flex: 0 1 320px;
   width: 320px;
   max-width: 100%;
+  min-width: 0; /* prevent overflow on very small viewports */
+}
+
+/* Small screens: make cards stack and avoid horizontal overflow */
+@media (max-width: 420px) {
+  .stack {
+    justify-content: center;
+    gap: 12px;
+  }
+
+  .card {
+    flex: 1 1 100%;
+    width: 100%;
+    padding-left: 12px;
+    padding-right: 12px;
+  }
 }
 
 .header {
