@@ -67,13 +67,24 @@ class Handler(BaseHTTPRequestHandler):
             repo_dir = os.path.dirname(TUNNEL_SCRIPT) if TUNNEL_SCRIPT else None
             if repo_dir:
                 # run docker compose to rebuild/recreate all services so they pick up the new .env
-                dc = subprocess.run(
-                    ["docker", "compose", "up", "-d", "--build"],
-                    cwd=repo_dir,
-                    capture_output=True,
-                    text=True,
-                    timeout=600,
-                )
+                # but exclude the telegram_bot service (we don't want to restart the bot here)
+                try:
+                    svc_proc = subprocess.run(
+                        ["docker", "compose", "config", "--services"],
+                        cwd=repo_dir,
+                        capture_output=True,
+                        text=True,
+                        timeout=30,
+                    )
+                    services = [s.strip() for s in svc_proc.stdout.splitlines() if s.strip()]
+                    services_to_update = [s for s in services if s != "telegram_bot"]
+                    if services_to_update:
+                        cmd = ["docker", "compose", "up", "-d", "--build"] + services_to_update
+                        dc = subprocess.run(cmd, cwd=repo_dir, capture_output=True, text=True, timeout=600)
+                    else:
+                        print("No services to update (only telegram_bot present); skipping docker compose step")
+                except Exception as e:
+                    print("docker compose invocation failed:", e)
                 # log compose output for debugging
                 print("docker compose returncode:", dc.returncode)
                 if dc.stdout:
