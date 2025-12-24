@@ -96,7 +96,14 @@ class Handler(BaseHTTPRequestHandler):
                     print("No services to update (only telegram_bot present); skipping docker compose step")
                     return
 
-                cmd = ["docker", "compose", "up", "-d", "--build"] + services_to_update
+                build_cmd = ["docker", "compose", "build", "--no-cache"] + services_to_update
+                b = subprocess.run(build_cmd, cwd=repo_dir, capture_output=True, text=True, timeout=600)
+                print("docker compose build returncode:", b.returncode)
+                if b.stdout:
+                    print(b.stdout)
+                if b.stderr:
+                    print(b.stderr)
+                cmd = ["docker", "compose", "up", "-d", "--no-build", "--force-recreate"] + services_to_update
                 dc = subprocess.run(cmd, cwd=repo_dir, capture_output=True, text=True, timeout=600)
                 print("docker compose returncode:", dc.returncode)
                 if dc.stdout:
