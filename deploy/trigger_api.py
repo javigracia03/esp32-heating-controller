@@ -10,8 +10,8 @@ import subprocess
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from socketserver import ThreadingMixIn
 
-HOST = '127.0.0.1'
-PORT = 5055
+HOST = os.environ.get('TRIGGER_HOST', '127.0.0.1')
+PORT = int(os.environ.get('TRIGGER_PORT', '5055'))
 
 TRIGGER_TOKEN = os.environ.get('TRIGGER_TOKEN')
 TUNNEL_SCRIPT = os.environ.get('TUNNEL_SCRIPT')
