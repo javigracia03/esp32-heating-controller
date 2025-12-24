@@ -2,6 +2,8 @@ import os
 import time
 import requests
 import sys
+import socket
+import struct
 
 TG_TOKEN = os.environ.get("TG_TOKEN")
 TG_CHAT_ID = os.environ.get("TG_CHAT_ID")
@@ -20,7 +22,39 @@ def send_message(text):
 def handle_tunnel_command():
     try:
         headers = {"Authorization": f"Bearer {TRIGGER_TOKEN}"}
-        resp = requests.post(TRIGGER_URL, headers=headers, timeout=30)
+
+        def try_post(url):
+            try:
+                return requests.post(url, headers=headers, timeout=30)
+            except requests.RequestException:
+                return None
+
+        # Try configured URL first
+        resp = try_post(TRIGGER_URL)
+
+        # If failed, try to discover docker gateway and retry automatically
+        if resp is None or resp.status_code >= 500:
+            gw = None
+            try:
+                # read /proc/net/route and find default gateway
+                with open('/proc/net/route') as f:
+                    for line in f:
+                        parts = line.strip().split()
+                        if len(parts) >= 3 and parts[1] == '00000000':
+                            gw_hex = parts[2]
+                            gw = socket.inet_ntoa(struct.pack('<L', int(gw_hex, 16)))
+                            break
+            except Exception:
+                gw = None
+
+            if gw:
+                gw_url = f"http://{gw}:5055/tunnel"
+                resp = try_post(gw_url)
+
+        if resp is None:
+            send_message("Error calling trigger API: connection failed")
+            return
+
         if resp.status_code == 200:
             send_message(f"Tunnel URL: {resp.text.strip()}")
         elif resp.status_code == 401:
