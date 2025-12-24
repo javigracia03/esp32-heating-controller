@@ -25,6 +25,18 @@ cleanup() {
 }
 trap cleanup EXIT
 
+# Drop any existing quick tunnels started by this script
+# (targets processes started with the same cloudflared quick-tunnel args)
+EXISTING_PIDS=$(pgrep -f "cloudflared tunnel --no-autoupdate --url" || true)
+if [[ -n "$EXISTING_PIDS" ]]; then
+  echo "Stopping existing cloudflared quick tunnels: $EXISTING_PIDS"
+  for pid in $EXISTING_PIDS; do
+    kill "$pid" >/dev/null 2>&1 || true
+  done
+  # give time for ports to be released
+  sleep 1
+fi
+
 # Run cloudflared in background
 # --no-autoupdate avoids some environments hanging on update checks
 cloudflared tunnel --no-autoupdate --url "$LOCAL_SERVICE_URL" >"$TMP_LOG" 2>&1 &
@@ -69,7 +81,9 @@ update_kv () {
   fi
 }
 
-update_kv "WEB_ORIGINS" "$PUBLIC_API_URL"
+# Do not include the API path in WEB_ORIGINS (frontend origin should be root URL)
+update_kv "WEB_ORIGINS" "$TUNNEL_URL"
+# Keep VITE_API_BASE pointing to the public API URL (including API path)
 update_kv "VITE_API_BASE" "$PUBLIC_API_URL"
 
 echo "Updated $ENV_FILE:"
